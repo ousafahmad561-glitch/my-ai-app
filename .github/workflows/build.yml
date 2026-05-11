@@ -8,62 +8,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # ---------------- Get code ----------------
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    # ---------------- Python setup ----------------
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
 
-    # ---------------- System dependencies ----------------
-    - name: Install system packages
+    - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y git zip unzip openjdk-17-jdk wget \
         autoconf automake libtool pkg-config
 
-    # ---------------- Python packages ----------------
-    - name: Install Python dependencies
+    - name: Install Buildozer
       run: |
         pip install --upgrade pip
         pip install buildozer cython kivy
 
-    # ---------------- Create Buildozer spec ----------------
     - name: Init Buildozer
-      run: |
-        buildozer init
+      run: buildozer init
 
-    # ---------------- Fix requirements ----------------
-    - name: Fix buildozer.spec
+    - name: Fix requirements
       run: |
         sed -i 's/^requirements =.*/requirements = python3,kivy/' buildozer.spec
 
-    # ---------------- FORCE FIX AIDL ISSUE ----------------
-    - name: Pre-install Android build-tools (FIX AIDL)
+    # IMPORTANT FIX: force correct Android API + build tools
+    - name: Fix Android config
       run: |
-        mkdir -p ~/.buildozer/android/platform
-        cd ~/.buildozer/android/platform
+        sed -i 's/^android.api =.*/android.api = 33/' buildozer.spec || true
+        sed -i 's/^android.minapi =.*/android.minapi = 21/' buildozer.spec || true
 
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip commandlinetools-linux-11076708_latest.zip
-
-        mkdir -p android-sdk/cmdline-tools/latest
-        mv cmdline-tools/* android-sdk/cmdline-tools/latest/
-
-        yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-        "platform-tools" \
-        "platforms;android-33" \
-        "build-tools;33.0.2"
-
-    # ---------------- Build APK ----------------
     - name: Build APK
-      run: |
-        buildozer -v android debug
+      run: buildozer -v android debug
 
-    # ---------------- Upload APK ----------------
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
